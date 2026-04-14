@@ -63,7 +63,10 @@ function initDataSync() {
     // Listen for Orders
     db.collection('orders').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
         console.log("Orders snapshot received. Count:", snapshot.size);
-        orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        orders = snapshot.docs.map(doc => {
+            const data = doc.data();
+            return { ...data, id: doc.id }; // Ensure Firestore doc.id is used as the 'id'
+        });
         renderOrders();
         updateBranchDropdown();
         
@@ -245,7 +248,6 @@ function renderAreas() {
 // Add Order Handler
 addOrderBtn.addEventListener('click', () => {
     const newOrder = {
-        id: String(Date.now()),
         orderNumber: orderFormInputs.orderNumber.value.trim(),
         drugName: orderFormInputs.drugName.value.trim(),
         quantity: orderFormInputs.quantity.value.trim(),
