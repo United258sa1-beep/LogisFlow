@@ -1,6 +1,6 @@
 // Firebase Configuration
 const firebaseConfig = {
-    apiKey: "AIzaSyDTWEA0bWYCIJbQi8VJ97JX3KKXaHjV-Bww",
+    apiKey: "AIzaSyDTWEA0bWYCIJbQ8vJ97JX3KKXaHjV-Bww",
     authDomain: "online-delivery-81c65.firebaseapp.com",
     projectId: "online-delivery-81c65",
     storageBucket: "online-delivery-81c65.firebasestorage.app",
@@ -9,9 +9,17 @@ const firebaseConfig = {
     measurementId: "G-8CMSJ658FM"
 };
 
+console.log("Initializing Firebase with project:", firebaseConfig.projectId);
+
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+try {
+    firebase.initializeApp(firebaseConfig);
+    var db = firebase.firestore();
+    console.log("Firebase Firestore initialized successfully.");
+} catch (e) {
+    console.error("Firebase initialization failed:", e.message);
+    alert("Firebase initialization failed. Please check your config.");
+}
 
 // State Management
 let orders = [];
@@ -50,21 +58,32 @@ const orderFormInputs = {
 initDataSync();
 
 function initDataSync() {
+    console.log("Starting real-time data sync...");
+    
     // Listen for Orders
     db.collection('orders').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        console.log("Orders snapshot received. Count:", snapshot.size);
         orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderOrders();
         updateBranchDropdown();
         
         // One-time migration from LocalStorage if needed
         checkMigration();
+    }, err => {
+        console.error("Firestore Orders error:", err.message);
+        if (err.message.includes("permission")) {
+            alert("CRITICAL: Database permissions denied. Please check your Firestore Rules (set to Test Mode).");
+        }
     });
 
     // Listen for Areas
     db.collection('areas').onSnapshot(snapshot => {
+        console.log("Areas snapshot received. Count:", snapshot.size);
         areas = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         renderAreas();
         updateAreaDropdown();
+    }, err => {
+        console.error("Firestore Areas error:", err.message);
     });
 }
 
