@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inter-Branch Logistics | Order Manager</title>
+    <meta name="description" content="Premium inter-branch delivery order management system.">
+    <link rel="stylesheet" href="style.css">
+    <!-- Lucide Icons for premium look -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Firebase SDK (Compat versions for easy integration) -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1 id="main-title">LogisFlow Master</h1>
+            <p class="subtitle">Inter-Branch Delivery Management System</p>
+        </header>
+
+        <!-- New Order Form -->
+        <section class="order-form-container">
+            <div class="form-grid">
+                <div class="input-group">
+                    <label for="order-number">Order Number</label>
+                    <input type="text" id="order-number" placeholder="e.g. #3786441" required>
+                </div>
+                <div class="input-group">
+                    <label for="drug-name">Drugs / Items</label>
+                    <input type="text" id="drug-name" placeholder="e.g. Lixiana 60mg tab" required>
+                </div>
+                <div class="input-group">
+                    <label for="quantity">Quantity</label>
+                    <input type="text" id="quantity" placeholder="e.g. 1 box" required>
+                </div>
+                <div class="input-group">
+                    <label for="branch-from">From Branch</label>
+                    <input type="text" id="branch-from" placeholder="Branch ID (331)" required>
+                </div>
+                <div class="input-group">
+                    <label for="branch-to">To Branch</label>
+                    <input type="text" id="branch-to" placeholder="Branch ID (351)" required>
+                </div>
+            </div>
+            <button id="add-order-btn" class="btn-add">
+                <i data-lucide="plus-circle"></i> Create Delivery Order
+            </button>
+        </section>
+
+        <!-- Route Planner & Branch Mode -->
+        <section class="planner-controls">
+            <div class="view-toggle">
+                <button id="view-all-btn" class="toggle-btn active" onclick="setViewMode('all')">Global View</button>
+                <button id="view-branch-btn" class="toggle-btn" onclick="setViewMode('branch')">Branch Focus</button>
+                <button id="view-area-btn" class="toggle-btn" onclick="setViewMode('area')">Area Focus</button>
+                <button id="view-history-btn" class="toggle-btn" onclick="setViewMode('history')">History</button>
+            </div>
+            
+            <div id="branch-selector-container" class="branch-selector hidden">
+                <div class="input-group">
+                    <label>Select Branch to Visit</label>
+                    <div class="selector-wrapper">
+                        <select id="branch-select" onchange="focusBranch(this.value)">
+                            <option value="">Choose a branch...</option>
+                        </select>
+                        <i data-lucide="map-pin" class="select-icon"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div id="area-selector-container" class="branch-selector hidden">
+                <div class="input-group">
+                    <label>Select delivery Area</label>
+                    <div class="selector-wrapper">
+                        <select id="area-select" onchange="focusArea(this.value)">
+                            <option value="">Choose an area...</option>
+                        </select>
+                        <button class="area-mgmt-btn" onclick="toggleAreaManager()" title="Manage Areas">
+                            <i data-lucide="settings"></i>
+                        </button>
+                    </div>
+                </div>
+                <button id="print-driver-btn" class="btn-print hidden" onclick="printDriverSheet()">
+                    <i data-lucide="printer"></i> Print for Driver
+                </button>
+            </div>
+        </section>
+
+        <!-- Area Management Modal/Section (Hidden by default) -->
+        <section id="area-manager" class="area-manager-panel hidden">
+            <div class="panel-header">
+                <h3><i data-lucide="layers"></i> Area Manager</h3>
+                <button class="btn-close" onclick="toggleAreaManager()">&times;</button>
+            </div>
+            <div class="area-creator">
+                <div class="input-group">
+                    <label>Area Name</label>
+                    <input type="text" id="new-area-name" placeholder="e.g. North Region">
+                </div>
+                <div class="input-group">
+                    <label>Branch IDs (comma separated)</label>
+                    <input type="text" id="new-area-branches" placeholder="e.g. 331, 332, 335">
+                </div>
+                <button class="btn-add-area" onclick="addArea()">Add Area</button>
+            </div>
+            <div id="area-list" class="area-list">
+                <!-- Areas will be listed here -->
+            </div>
+        </section>
+
+        <!-- Orders List / Branch Columns -->
+        <main>
+            <div id="branch-focus-view" class="branch-focus-grid hidden">
+                <div class="focus-column">
+                    <div class="column-header">
+                        <i data-lucide="download" class="deliver-icon"></i>
+                        Deliver to this Branch
+                    </div>
+                    <div id="deliver-list" class="column-list"></div>
+                </div>
+                <div class="focus-column">
+                    <div class="column-header">
+                        <i data-lucide="upload" class="collect-icon"></i>
+                        Collect from this Branch
+                    </div>
+                    <div id="collect-list" class="column-list"></div>
+                </div>
+            </div>
+
+            <div id="orders-list" class="orders-grid">
+                <!-- Orders will be injected here by JS -->
+                <div class="empty-state">
+                    <i data-lucide="package-search" size="48"></i>
+                    <p>No active delivery orders found. Create one above to get started.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+    <script>
+        // Initialize Lucide icons
+        lucide.createIcons();
+    </script>
+</body>
+</html>
