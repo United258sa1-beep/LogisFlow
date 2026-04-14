@@ -67,10 +67,16 @@ function initDataSync() {
         renderOrders();
         updateBranchDropdown();
         
+        // Update Sync Status
+        syncStatus.innerText = 'Connected: ' + new Date().toLocaleTimeString();
+        syncStatus.style.color = '#10b981'; // Green
+        
         // One-time migration from LocalStorage if needed
         checkMigration();
     }, err => {
         console.error("Firestore Orders error:", err.message);
+        syncStatus.innerText = 'Sync Error: Check Console';
+        syncStatus.style.color = '#ef4444'; // Red
         if (err.message.includes("permission")) {
             alert("CRITICAL: Database permissions denied. Please check your Firestore Rules (set to Test Mode).");
         }
@@ -116,7 +122,16 @@ function checkMigration() {
     }
 }
 
-// View Switching
+    renderOrders();
+}
+
+// Add Sync Status Indicator to UI
+const syncStatus = document.createElement('div');
+syncStatus.id = 'sync-status';
+syncStatus.style.cssText = 'position: fixed; bottom: 10px; right: 10px; font-size: 10px; color: var(--text-muted); opacity: 0.5;';
+syncStatus.innerText = 'Initializing...';
+document.body.appendChild(syncStatus);
+
 function setViewMode(mode) {
     currentViewMode = mode;
     
