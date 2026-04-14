@@ -122,9 +122,6 @@ function checkMigration() {
     }
 }
 
-    renderOrders();
-}
-
 // Add Sync Status Indicator to UI
 const syncStatus = document.createElement('div');
 syncStatus.id = 'sync-status';
