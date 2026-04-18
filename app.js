@@ -162,11 +162,12 @@ function updateBranchDropdown() {
     // Get unique branches from both "From" and "To" fields
     const branches = new Set();
     orders.forEach(order => {
-        branches.add(order.branchFrom);
-        branches.add(order.branchTo);
+        if (order.branchFrom) branches.add(order.branchFrom);
+        if (order.branchTo) branches.add(order.branchTo);
     });
 
     const sortedBranches = Array.from(branches).sort();
+    console.log("Updating branch dropdown. Branches found:", sortedBranches);
     
     branchSelect.innerHTML = '<option value="">Choose a branch...</option>' + 
         sortedBranches.map(b => `<option value="${b}" ${b === focusedBranchId ? 'selected' : ''}>Branch ${b}</option>`).join('');
@@ -196,30 +197,15 @@ function addArea() {
     
     const branches = branchesStr.split(',').map(s => s.trim()).filter(s => s !== "");
     
-    const newArea = {
-        id: 'area-' + Date.now(),
-        name,
-        branches
-    };
-    
-    areas.push(newArea);
-    saveAreas();
+    db.collection('areas').add({ name, branches });
     
     nameInput.value = '';
     branchesInput.value = '';
-    
-    updateAreaDropdown();
-    renderAreas();
 }
 
 function deleteArea(id) {
     if (confirm('Delete this area?')) {
-        areas = areas.filter(a => a.id !== id);
-        saveAreas();
-        if (focusedAreaId === id) focusedAreaId = '';
-        updateAreaDropdown();
-        renderAreas();
-        renderOrders();
+        db.collection('areas').doc(id).delete();
     }
 }
 
@@ -291,31 +277,7 @@ function deleteOrder(id) {
     }
 }
 
-function addArea() {
-    const nameInput = document.getElementById('new-area-name');
-    const branchesInput = document.getElementById('new-area-branches');
-    
-    const name = nameInput.value.trim();
-    const branchesStr = branchesInput.value.trim();
-    
-    if (!name || !branchesStr) {
-        alert('Please provide area name and branch IDs.');
-        return;
-    }
-    
-    const branches = branchesStr.split(',').map(s => s.trim()).filter(s => s !== "");
-    
-    db.collection('areas').add({ name, branches });
-    
-    nameInput.value = '';
-    branchesInput.value = '';
-}
-
-function deleteArea(id) {
-    if (confirm('Delete this area?')) {
-        db.collection('areas').doc(id).delete();
-    }
-}
+// Functions moved up
 
 function createOrderCard(order) {
     return `
