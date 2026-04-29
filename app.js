@@ -162,12 +162,11 @@ function updateBranchDropdown() {
     // Get unique branches from both "From" and "To" fields
     const branches = new Set();
     orders.forEach(order => {
-        if (order.branchFrom) branches.add(order.branchFrom);
-        if (order.branchTo) branches.add(order.branchTo);
+        branches.add(order.branchFrom);
+        branches.add(order.branchTo);
     });
 
     const sortedBranches = Array.from(branches).sort();
-    console.log("Updating branch dropdown. Branches found:", sortedBranches);
     
     branchSelect.innerHTML = '<option value="">Choose a branch...</option>' + 
         sortedBranches.map(b => `<option value="${b}" ${b === focusedBranchId ? 'selected' : ''}>Branch ${b}</option>`).join('');
@@ -197,15 +196,30 @@ function addArea() {
     
     const branches = branchesStr.split(',').map(s => s.trim()).filter(s => s !== "");
     
-    db.collection('areas').add({ name, branches });
+    const newArea = {
+        id: 'area-' + Date.now(),
+        name,
+        branches
+    };
+    
+    areas.push(newArea);
+    saveAreas();
     
     nameInput.value = '';
     branchesInput.value = '';
+    
+    updateAreaDropdown();
+    renderAreas();
 }
 
 function deleteArea(id) {
     if (confirm('Delete this area?')) {
-        db.collection('areas').doc(id).delete();
+        areas = areas.filter(a => a.id !== id);
+        saveAreas();
+        if (focusedAreaId === id) focusedAreaId = '';
+        updateAreaDropdown();
+        renderAreas();
+        renderOrders();
     }
 }
 
@@ -277,7 +291,31 @@ function deleteOrder(id) {
     }
 }
 
-// Functions moved up
+function addArea() {
+    const nameInput = document.getElementById('new-area-name');
+    const branchesInput = document.getElementById('new-area-branches');
+    
+    const name = nameInput.value.trim();
+    const branchesStr = branchesInput.value.trim();
+    
+    if (!name || !branchesStr) {
+        alert('Please provide area name and branch IDs.');
+        return;
+    }
+    
+    const branches = branchesStr.split(',').map(s => s.trim()).filter(s => s !== "");
+    
+    db.collection('areas').add({ name, branches });
+    
+    nameInput.value = '';
+    branchesInput.value = '';
+}
+
+function deleteArea(id) {
+    if (confirm('Delete this area?')) {
+        db.collection('areas').doc(id).delete();
+    }
+}
 
 function createOrderCard(order) {
     return `
@@ -403,4 +441,170 @@ function printDriverSheet() {
     window.print();
     
     document.title = originalTitle;
+}
+
+// --- Smart Import AI Logic ---
+function toggleSmartImport() {
+    const modal = document.getElementById('smart-import-modal');
+    modal.classList.toggle('hidden');
+    if (!modal.classList.contains('hidden')) {
+        document.getElementById('raw-text-input').focus();
+    }
+}
+
+function parseOrdersWithAI(text) {
+    const orderBlocks = text.split(/Order Number/i).filter(b => b.trim().length > 0);
+    const parsedOrders = [];
+
+    orderBlocks.forEach(block => {
+        let rawBlock = block.trim();
+        let lines = rawBlock.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+        if (lines.length === 0) return;
+
+        let order = {
+            orderNumber: '',
+            drugName: '',
+            quantity: '1 box',
+            branchFrom: '',
+            branchTo: '',
+            status: 'pending',
+            createdAt: new Date().toISOString()
+        };
+
+        // 1. Extract Order Number
+        const numMatch = rawBlock.match(/#?(\d{6,})/); // Look for long numbers (6+ digits)
+        if (numMatch) order.orderNumber = '#' + numMatch[1];
+        if (!order.orderNumber) {
+            const shortMatch = lines[0].match(/#?(\d+)/);
+            if (shortMatch) order.orderNumber = '#' + shortMatch[1];
+        }
+
+        // 2. SMART BRANCH DETECTION
+        // We look for patterns and extract the numbers, then "clean" them from the text
+        let tempText = rawBlock;
+
+        // Pattern Priorities:
+        // A. "from X to Y" (most reliable)
+        const fromToMatch = tempText.match(/from\s*(\d+).*?to\s*(\d+)/i);
+        if (fromToMatch) {
+            order.branchFrom = fromToMatch[1];
+            order.branchTo = fromToMatch[2];
+        }
+
+        // B. Search for individual 'From' markers
+        const fromPatterns = [/from\s*(\d+)/i, /من\s*(\d+)/, /من\s*فرع\s*(\d+)/, /هيتجاب\s*من\s*(\d+)/];
+        fromPatterns.forEach(p => {
+            const m = tempText.match(p);
+            if (m && !order.branchFrom) order.branchFrom = m[1];
+        });
+
+        // C. Search for individual 'To' markers
+        const toPatterns = [/to\s*(\d+)/i, /إلى\s*(\d+)/, /الي\s*(\d+)/, /لفرع\s*(\d+)/, /توصيل\s*لـ\s*(\d+)/, /توصيل\s*الي\s*(\d+)/];
+        toPatterns.forEach(p => {
+            const m = tempText.match(p);
+            if (m && !order.branchTo) order.branchTo = m[1];
+        });
+
+        // D. Fallback: "Pharmacy X" context
+        const pharmacyMatch = tempText.match(/Pharmacy:?\s*.*?(\d+)/i) || tempText.match(/Pharmacy\s*(\d+)/i);
+        if (pharmacyMatch) {
+            const pNum = pharmacyMatch[1];
+            // If we have a destination but no source, or vice versa, the pharmacy is likely the other end
+            if (order.branchTo && !order.branchFrom && order.branchTo !== pNum) order.branchFrom = pNum;
+            else if (order.branchFrom && !order.branchTo && order.branchFrom !== pNum) order.branchTo = pNum;
+            else if (!order.branchTo) order.branchTo = pNum;
+        }
+
+        // 3. Extract Quantity
+        const qtyMatch = tempText.match(/(\d+)\s*(box|pack|bottle|strip|tab|unit|جرعة|علبة|علبتين|كرتون)/i) || tempText.match(/(علبتين|كرتون|علبه|علبة)/);
+        if (qtyMatch) {
+            order.quantity = qtyMatch[0].replace('علبتين', '2 box').replace('علبة', '1 box').replace('علبه', '1 box');
+        }
+
+        // 4. CLEAN DRUG NAME
+        // Remove all the parts we've identified to find the drug name
+        let nameText = rawBlock
+            .replace(/Order Number\s*#?\d+/gi, '')
+            .replace(/Placed by Pharmacy:?.*?(\d+)?/gi, '')
+            .replace(/Notes:/gi, '')
+            .replace(/from\s*\d+/gi, '')
+            .replace(/to\s*\d+/gi, '')
+            .replace(/من\s*فرع\s*\d+/g, '')
+            .replace(/لفرع\s*\d+/g, '')
+            .replace(/الي\s*فرع\s*\d+/g, '')
+            .replace(/إلى\s*فرع\s*\d+/g, '')
+            .replace(/هيتجاب\s*من\s*\d+/g, '')
+            .replace(/(\d+)\s*(box|pack|bottle|strip|tab|unit|جرعة|علبة|علبتين|كرتون)/gi, '')
+            .replace(/علبتين|كرتون|علبه|علبة/g, '')
+            .replace(/[#:]/g, '')
+            .replace(/\s\d{3}\s/g, ' ') // Remove any loose 3-digit numbers (likely branch IDs)
+            .split('\n')
+            .map(s => s.trim())
+            .filter(s => s.length > 0)
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        order.drugName = nameText || 'Unknown Item';
+
+        if (order.orderNumber) {
+            parsedOrders.push(order);
+        }
+    });
+
+    return parsedOrders;
+}
+
+async function processRawText() {
+    const input = document.getElementById('raw-text-input');
+    const preview = document.getElementById('parse-preview');
+    const text = input.value.trim();
+
+    if (!text) {
+        alert("Please paste some text first.");
+        return;
+    }
+
+    const newOrders = parseOrdersWithAI(text);
+    
+    if (newOrders.length === 0) {
+        alert("Could not find any orders in the text.");
+        return;
+    }
+
+    // Show Preview
+    preview.innerHTML = `<strong>Detected ${newOrders.length} orders:</strong>` + 
+        newOrders.map(o => `
+            <div class="parse-item">
+                <div style="display:flex; justify-content:space-between">
+                    <strong>${o.orderNumber} - ${o.drugName}</strong>
+                    <span style="color:#10b981">${o.quantity}</span>
+                </div>
+                <div style="font-size:0.75rem; color:var(--text-muted); margin-top:4px;">
+                    From: <span style="color:white">${o.branchFrom || '???'}</span> ➔ 
+                    To: <span style="color:white">${o.branchTo || '???'}</span>
+                </div>
+            </div>
+        `).join('');
+    preview.classList.remove('hidden');
+
+    // Confirm and Add to Firebase
+    if (confirm(`Add these ${newOrders.length} orders? (Duplicates will be updated)`)) {
+        const batch = db.batch();
+        newOrders.forEach(order => {
+            const docId = order.orderNumber.replace('#', 'ORD-');
+            const ref = db.collection('orders').doc(docId);
+            batch.set(ref, order, { merge: true });
+        });
+
+        try {
+            await batch.commit();
+            alert(`Success! Handled ${newOrders.length} orders.`);
+            input.value = '';
+            preview.classList.add('hidden');
+            toggleSmartImport();
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    }
 }

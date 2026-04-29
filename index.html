@@ -44,9 +44,30 @@
                     <input type="text" id="branch-to" placeholder="Branch ID (351)" required>
                 </div>
             </div>
-            <button id="add-order-btn" class="btn-add">
-                <i data-lucide="plus-circle"></i> Create Delivery Order
-            </button>
+            <div class="form-actions" style="display: flex; gap: 1rem; margin-top: 1rem;">
+                <button id="add-order-btn" class="btn-add" style="flex: 1;">
+                    <i data-lucide="plus-circle"></i> Create Delivery Order
+                </button>
+                <button id="smart-import-btn" class="btn-smart" onclick="toggleSmartImport()">
+                    <i data-lucide="sparkles"></i> AI Smart Import
+                </button>
+            </div>
+        </section>
+
+        <!-- Smart Import Modal -->
+        <section id="smart-import-modal" class="area-manager-panel hidden" style="z-index: 1000; width: 500px;">
+            <div class="panel-header">
+                <h3><i data-lucide="sparkles"></i> AI Order Parser</h3>
+                <button class="btn-close" onclick="toggleSmartImport()">&times;</button>
+            </div>
+            <div class="smart-importer">
+                <p class="hint">Paste orders from WhatsApp below. AI will extract all fields automatically.</p>
+                <textarea id="raw-text-input" placeholder="Paste WhatsApp messages here..." style="width: 100%; height: 200px; padding: 0.75rem; border-radius: 8px; background: rgba(255,255,255,0.05); color: white; border: 1px solid rgba(255,255,255,0.1); margin-bottom: 1rem; font-family: monospace;"></textarea>
+                <div id="parse-preview" class="parse-preview hidden" style="margin-bottom: 1rem; max-height: 200px; overflow-y: auto;"></div>
+                <button class="btn-add-area" id="process-raw-btn" onclick="processRawText()">
+                    <i data-lucide="zap"></i> Parse & Add Orders
+                </button>
+            </div>
         </section>
 
         <!-- Route Planner & Branch Mode -->
