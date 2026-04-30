@@ -326,6 +326,10 @@ function createOrderCard(order) {
             </div>
             <div class="order-details">
                 <h3 class="drug-name">${order.drugName}</h3>
+                <div class="order-time">
+                    <i data-lucide="clock" style="width: 12px; height: 12px;"></i>
+                    ${new Date(order.createdAt).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}
+                </div>
                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">${order.quantity}</p>
                 <div class="route-info">
                     <span class="branch">${order.branchFrom}</span>
