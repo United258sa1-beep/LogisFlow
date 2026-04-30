@@ -592,8 +592,7 @@ async function processRawText() {
     if (confirm(`Add these ${newOrders.length} orders? (Duplicates will be updated)`)) {
         const batch = db.batch();
         newOrders.forEach(order => {
-            const slug = order.drugName.toLowerCase().replace(/[^a-z0-9]/g, '-').substring(0, 20);
-            const docId = `${order.orderNumber.replace('#', 'ORD-')}-${order.branchFrom || 'X'}-${order.branchTo || 'Y'}-${slug}`;
+            const docId = `${order.orderNumber.replace('#', 'ORD-')}-${order.branchFrom || 'X'}-${order.branchTo || 'Y'}`;
             const ref = db.collection('orders').doc(docId);
             batch.set(ref, order, { merge: true });
         });
